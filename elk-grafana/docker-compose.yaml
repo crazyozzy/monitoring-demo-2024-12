@@ -1,0 +1,70 @@
+version: "2.2"
+
+services:
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:7.17.26
+    container_name: filebeat
+    environment:
+      - output.elasticsearch.hosts=["http://es01:9200"]
+    volumes:
+      - filebeat_data:/usr/share/filebeat
+      - eslogs01:/tmp/eslogs01:ro
+
+  es01:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.26
+    container_name: es01
+    environment:
+      - node.name=es01
+      - cluster.name=es-docker-cluster
+      - cluster.initial_master_nodes=es01
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - esdata01:/usr/share/elasticsearch/data
+      - eslogs01:/usr/share/elasticsearch/logs
+    ports:
+      - 9200:9200
+    # networks:
+    #   - elastic
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.17.26
+    environment:
+      SERVER_NAME: kibana.example.org
+      ELASTICSEARCH_HOSTS: '["http://es01:9200"]'
+    volumes:
+      - kibanadata:/usr/share/kibana
+    ports:
+      - 5601:5601
+
+  grafana:
+    image: grafana/grafana:10.4.14
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    volumes:
+      - grafana_data:/var/lib/grafana
+      # - ./grafana//provisioning:/etc/grafana/provisioning
+    environment:
+      - GF_SECURITY_ADMIN_USER=${ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+
+volumes:
+  certs:
+    driver: local
+  filebeat_data:
+    driver: local
+  esdata01:
+    driver: local
+  eslogs01:
+    driver: local
+  kibanadata:
+    driver: local
+  grafana_data:
+    driver: local
